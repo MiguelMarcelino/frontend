@@ -1,0 +1,8 @@
+services:
+  frontend:
+    image: stocknear/frontend
+    build: ./frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - app-backend
