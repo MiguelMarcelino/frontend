@@ -33,6 +33,16 @@ HOST=0.0.0.0
 PORT=5173
 ```
 
+To generate the public and private keys, you can fun the following command
+```shell
+npx web-push generate-vapid-keys
+```
+
+Then you can run it using the following command
+```shell
+docker compose -f frontend/docker-compose.yml --env-file frontend/.env up --build -d
+```
+
 # Techstack
 
 This is the codebase that powers [Stocknear's](https://stocknear.com/) frontend, which is an open-source stock analysis platform.
