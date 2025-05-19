@@ -31,6 +31,7 @@ BACKEND_NETWORK=backend-network
 # Hostname and port for the frontend
 HOST=0.0.0.0
 PORT=5173
+EXTERNAL_PORT=80
 ```
 
 To generate the public and private keys, you can fun the following command

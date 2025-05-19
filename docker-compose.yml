@@ -3,7 +3,7 @@ services:
     image: stocknear-frontend:latest
     build: .
     ports:
-      - "${PORT}:${PORT}"
+      - "${EXTERNAL_PORT}:${PORT}"
     environment:
       - VITE_BACKEND_URL=${VITE_BACKEND_URL}
       - VITE_STOCKNEAR_API_KEY=${VITE_STOCKNEAR_API_KEY}
