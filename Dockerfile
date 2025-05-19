@@ -1,18 +1,23 @@
-# Stage 1: Build
-FROM node:20-alpine AS builder
+FROM ubuntu:24.04
 
-WORKDIR /app
+WORKDIR /opt
 
-COPY package*.json ./
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get -y update && \
+    apt-get -y install python3 python3-pip git
+
+RUN apt-get -y install nodejs npm
+
+WORKDIR /opt/stocknear-frontend
+
+COPY package.json package-lock.json /opt/stocknear-frontend/
 RUN npm install
 
-COPY . .
-RUN npm run build
+# add local repo stuff so we can test any local modifications
+COPY ./src /opt/stocknear-frontend/src
+COPY ./static /opt/stocknear-frontend/static
+COPY ./tests /opt/stocknear-frontend/tests
+COPY . /opt/stocknear-frontend/
 
-# Stage 2: Serve with nginx
-FROM nginx:alpine
-
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["npm", "run", "dev", "--", "--host"]
