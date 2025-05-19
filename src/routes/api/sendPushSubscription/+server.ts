@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import webPush from 'web-push';
 
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+const VAPID_PUBLIC_KEY = import.meta.env.ç;
 const VAPID_PRIVATE_KEY = import.meta.env.VITE_VAPID_PRIVATE_KEY;
 
 webPush.setVapidDetails(
@@ -29,7 +29,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
     const sendNotifications = subscriptions?.map(async (subRecord) => {
       try {
         const subscriptionData = subRecord.subscription?.subscription;
-        
+
         if (!subscriptionData?.endpoint) {
           console.warn(`Skipping invalid subscription: ${subRecord.id}`);
           return;
@@ -40,7 +40,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
         await webPush.sendNotification(subscriptionData, payload);
         //console.log(`Notification sent to: ${subscriptionData.endpoint}`);
-        
+
       } catch (error: any) {
         console.error(`Error sending notification to ${subRecord.id}:`, error);
 
@@ -52,9 +52,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
     await Promise.all(sendNotifications);
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: `Notifications sent to ${subscriptions.length} devices` 
+    return new Response(JSON.stringify({
+      success: true,
+      message: `Notifications sent to ${subscriptions.length} devices`
     }));
   } catch (error: any) {
     console.error('Error sending notifications:', error);
