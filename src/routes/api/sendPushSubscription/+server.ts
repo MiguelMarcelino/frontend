@@ -4,13 +4,14 @@ import webPush from 'web-push';
 const VAPID_PUBLIC_KEY = import.meta.env.ç;
 const VAPID_PRIVATE_KEY = import.meta.env.VITE_VAPID_PRIVATE_KEY;
 
-webPush.setVapidDetails(
-  'mailto:contact@stocknear.com',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
-
 export const POST: RequestHandler = async ({ request, locals }) => {
+  
+  webPush.setVapidDetails(
+    'mailto:contact@stocknear.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+
   const { pb, apiKey } = locals;
   // Extract 'url' from the request body
   const { title, body, key, url, userId } = await request?.json();
