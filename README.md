@@ -12,6 +12,27 @@
 
 </div>
 
+## Running Project
+
+To run the project, you need to define the following `.env` file:
+```shell
+VAPID_PUBLIC_KEY=<your_key>
+VAPID_PRIVATE_KEY=<your_key>
+
+# URL of the backend container
+VITE_BACKEND_URL=http://backend:8000
+
+# API key for the backend API
+VITE_STOCKNEAR_API_KEY=test
+
+# Network name for the backend container
+BACKEND_NETWORK=backend-network
+
+# Hostname and port for the frontend
+HOST=0.0.0.0
+PORT=5173
+```
+
 # Techstack
 
 This is the codebase that powers [Stocknear's](https://stocknear.com/) frontend, which is an open-source stock analysis platform.
