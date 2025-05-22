@@ -1,7 +1,7 @@
 <script lang="ts">
   import { screenWidth } from "$lib/store";
   import * as Card from "$lib/components/shadcn/card/index.ts";
-  import * as Table from "$lib/components/shadcn/table/index.ts";
+  import * as Table from "$lib/components/shadcn/Table/index.ts";
   import HoverStockChart from "$lib/components/HoverStockChart.svelte";
   //import UpgradeToPro from '$lib/components/UpgradeToPro.svelte';
   import Link from "lucide-svelte/icons/external-link";
