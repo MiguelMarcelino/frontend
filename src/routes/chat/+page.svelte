@@ -1,14 +1,32 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import Chat from "lucide-svelte/icons/message-circle";
   import Arrow from "lucide-svelte/icons/arrow-up";
   import { mode } from "mode-watcher";
   import { toast } from "svelte-sonner";
   import { goto } from "$app/navigation";
+  import * as DropdownMenu from "$lib/components/shadcn/dropdown-menu/index.js";
+  import { Button } from "$lib/components/shadcn/button/index.js";
+  import { EditorState, Plugin } from "prosemirror-state";
+  import { EditorView, Decoration, DecorationSet } from "prosemirror-view";
+  import { keymap } from "prosemirror-keymap";
+  import { agentOptions } from "$lib/utils";
+
+  import { schema } from "prosemirror-schema-basic";
+
   import SEO from "$lib/components/SEO.svelte";
 
-  import { onMount } from "svelte";
   export let data;
 
+  let editorDiv;
+  let editorView;
+  let editorText = "";
+
+  let suggestions = [];
+  let showSuggestions = false;
+  let suggestionPos = { top: 0, left: 0 };
+  let selectedSuggestion = 0;
+  let currentQuery = "";
   let isLoading = false;
 
   let defaultChats = [
@@ -16,28 +34,190 @@
       chat: "What are key highlights of dark pool and options flow orders for Nvidia today.",
     },
     { chat: "Which SPY options are trending now?" },
-    {
-      chat: "List companies with >$10 B revenue and ≥10% growth, sorted by P/E",
-    },
-
-    {
-      chat: "Which stocks reporting earnings today?",
-    },
-
+    { chat: "Tell me everything about Tesla." },
+    { chat: "Which stocks reporting earnings today?" },
     { chat: "How does Google make money?" },
   ];
 
-  let inputText = ""; // To bind the textarea value
-  let inputEl: HTMLTextAreaElement;
-  const MAX_HEIGHT = 16 * 16; // 16rem * 16px = 256px
+  const editorHighlighter = new Plugin({
+    props: {
+      decorations(state) {
+        const decorations = [];
+        const regex = /\@([a-zA-Z0-9_]+)/g;
+
+        state.doc.descendants((node, pos) => {
+          if (!node.isText) return;
+
+          const text = node.text;
+          if (!text) return;
+
+          let match;
+          while ((match = regex.exec(text)) !== null) {
+            const mention = match[1];
+            if (agentOptions?.includes(mention)) {
+              decorations?.push(
+                Decoration?.inline(
+                  pos + match.index,
+                  pos + match.index + match[0]?.length,
+                  {
+                    class: "text-blue-800 dark:text-blue-400",
+                  },
+                ),
+              );
+            }
+          }
+        });
+
+        return DecorationSet.create(state.doc, decorations);
+      },
+    },
+  });
+
+  function getCaretCoordinates(view) {
+    const { from } = view.state.selection;
+    const start = view.coordsAtPos(from);
+    return start;
+  }
+
+  function checkAutocomplete(view) {
+    const { from } = view.state.selection;
+    const before = view.state.doc.textBetween(
+      Math.max(0, from - 20),
+      from,
+      "\n",
+      "\n",
+    );
+    const match = /\@([a-zA-Z0-9_]*)$/.exec(before);
+
+    if (match) {
+      currentQuery = match[1];
+      suggestions = agentOptions?.filter((s) =>
+        s.toLowerCase().startsWith(currentQuery.toLowerCase()),
+      );
+
+      const coords = getCaretCoordinates(view);
+      suggestionPos = { top: coords.bottom + 4, left: coords.left };
+      showSuggestions = suggestions.length > 0;
+    } else {
+      showSuggestions = false;
+    }
+  }
+
+  const placeholderPlugin = new Plugin({
+    props: {
+      decorations(state) {
+        // only show if empty
+        if (state.doc.textContent.length > 0) return null;
+
+        const widget = Decoration.widget(1, () => {
+          const span = document.createElement("span");
+          span.className =
+            "text-gray-800 dark:text-gray-400 pointer-events-none";
+          span.textContent = "Ask anything";
+          return span;
+        });
+
+        return DecorationSet.create(state.doc, [widget]);
+      },
+    },
+  });
+
+  onMount(() => {
+    editorView = new EditorView(editorDiv, {
+      state: EditorState.create({
+        schema,
+        plugins: [
+          editorHighlighter,
+          placeholderPlugin,
+          agentMentionDeletePlugin(agentOptions),
+        ],
+      }),
+      attributes: {
+        style: "outline: none !important; border: none !important;",
+      },
+      dispatchTransaction(transaction) {
+        const newState = editorView.state.apply(transaction);
+        editorView.updateState(newState);
+        editorText = editorView?.state.doc?.textContent;
+        checkAutocomplete(editorView);
+      },
+    });
+
+    // Force remove outline after creation
+    const proseMirrorEl = editorDiv.querySelector(".ProseMirror");
+    if (proseMirrorEl) {
+      proseMirrorEl.style.outline = "none";
+      proseMirrorEl.style.border = "none";
+      proseMirrorEl.style.boxShadow = "none";
+    }
+
+    // Autofocus the editor
+    // Autofocus the editor with a small delay
+    setTimeout(() => {
+      editorView.focus();
+    }, 100);
+
+    editorText = editorView.state.doc.textContent;
+  });
+
+  function insertSuggestion(suggestion) {
+    const { from } = editorView.state.selection;
+    const before = editorView.state.doc.textBetween(
+      Math.max(0, from - 20),
+      from,
+      "\n",
+      "\n",
+    );
+    const match = /\@([a-zA-Z0-9_]*)$/.exec(before);
+
+    if (match) {
+      const start = from - match[0].length;
+
+      // First, create transaction
+      const tr = editorView.state.tr.insertText(`@${suggestion} `, start, from);
+
+      // Then set selection on the new transaction
+      const resolvedPos = tr.doc.resolve(start + suggestion.length + 2);
+      const newSelection =
+        editorView.state.selection.constructor.near(resolvedPos);
+      tr.setSelection(newSelection);
+
+      editorView.dispatch(tr);
+      showSuggestions = false;
+    }
+  }
+
+  function handleKeyDown(event) {
+    if (showSuggestions) {
+      if (event.key === "ArrowDown") {
+        selectedSuggestion = (selectedSuggestion + 1) % suggestions.length;
+        event.preventDefault();
+      } else if (event.key === "ArrowUp") {
+        selectedSuggestion =
+          (selectedSuggestion - 1 + suggestions.length) % suggestions.length;
+        event.preventDefault();
+      } else if (event.key === "Enter") {
+        insertSuggestion(suggestions[selectedSuggestion]);
+        event.preventDefault();
+      } else if (event.key === "Escape") {
+        showSuggestions = false;
+      }
+    } else {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        createChat();
+      }
+    }
+  }
 
   async function createChat() {
     isLoading = true;
-    if (!["Pro", "Plus"]?.includes(data?.user?.tier)) {
+    if (!["Pro", "Plus"].includes(data?.user?.tier)) {
       toast.error("Upgrade your account to unlock this feature", {
         style: `border-radius: 5px; background: #fff; color: #000; border-color: ${$mode === "light" ? "#F9FAFB" : "#4B5563"}; font-size: 15px;`,
       });
-      inputText = "";
+      isLoading = false;
+      return;
     }
 
     if (data?.user?.credits < 20) {
@@ -47,42 +227,108 @@
           style: `border-radius: 5px; background: #fff; color: #000; border-color: ${$mode === "light" ? "#F9FAFB" : "#4B5563"}; font-size: 15px;`,
         },
       );
-      inputText = "";
+      isLoading = false;
+      return;
     }
-    const userQuery = inputText?.trim();
-    if (userQuery?.length > 0) {
+
+    if (editorText?.trim()?.length > 0) {
       const response = await fetch("/api/create-chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userQuery }),
+        body: JSON.stringify({ query: editorText }),
       });
 
-      const output = await response?.json();
-
-      goto(`/chat/${output?.id}`);
+      const output = await response.json();
+      goto(`/chat/${output.id}`);
     }
     isLoading = false;
   }
-  onMount(() => {
-    if (inputEl) {
-      inputEl.focus();
-      resize();
-    }
-  });
 
-  function handleDefaultChatClick(chatText: string) {
-    inputText = chatText;
-    inputEl?.focus();
+  function insertAgentOption(option) {
+    const { from, to } = editorView.state.selection;
+    const text = `@${option} `;
+
+    const tr = editorView.state.tr.insertText(text, from, to);
+    const resolvedPos = tr.doc.resolve(from + text.length);
+    const newSelection =
+      editorView.state.selection.constructor.near(resolvedPos);
+    tr.setSelection(newSelection);
+
+    editorView?.dispatch(tr);
+    editorView?.focus();
   }
 
-  function resize() {
-    if (!inputEl) return;
-    // Reset height
-    inputEl.style.height = "auto";
-    const scrollH = inputEl.scrollHeight;
-    const newHeight = Math.min(scrollH, MAX_HEIGHT);
-    inputEl.style.height = newHeight + "px";
-    inputEl.style.overflowY = scrollH > MAX_HEIGHT ? "auto" : "hidden";
+  function insertDefaultChat(option) {
+    const { from, to } = editorView.state.selection;
+    const text = `${option} `;
+
+    const tr = editorView.state.tr.insertText(text, from, to);
+    const resolvedPos = tr.doc.resolve(from + text.length);
+    const newSelection =
+      editorView.state.selection.constructor.near(resolvedPos);
+    tr.setSelection(newSelection);
+
+    editorView?.dispatch(tr);
+    editorView?.focus();
+  }
+  function agentMentionDeletePlugin(agentOptions: string[]) {
+    return keymap({
+      Backspace: (state, dispatch, view) => {
+        const { $cursor } = state.selection as any;
+
+        if (!$cursor) return false;
+
+        const { pos } = $cursor;
+        const textBefore = state.doc.textBetween(
+          Math.max(0, pos - 30),
+          pos,
+          "\n",
+          "\n",
+        );
+
+        const regex = /\@([a-zA-Z0-9_]+)$/;
+        const match = regex.exec(textBefore);
+
+        if (match && agentOptions.includes(match[1])) {
+          const start = pos - match[0].length;
+
+          if (dispatch) {
+            dispatch(state.tr.delete(start, pos));
+          }
+          return true;
+        }
+
+        return false;
+      },
+
+      // Optional: support Delete key too
+      Delete: (state, dispatch, view) => {
+        const { $cursor } = state.selection as any;
+        if (!$cursor) return false;
+
+        const { pos } = $cursor;
+        const textAfter = state.doc.textBetween(
+          pos,
+          Math.min(pos + 30, state.doc.content.size),
+          "\n",
+          "\n",
+        );
+
+        const regex = /^\@([a-zA-Z0-9_]+)/;
+        const match = regex.exec(textAfter);
+
+        if (match && agentOptions.includes(match[1])) {
+          const end = pos + match[0].length;
+
+          if (dispatch) {
+            dispatch(state.tr.delete(pos, end));
+          }
+          return true;
+        }
+
+        return false;
+      },
+    });
   }
 </script>
 
@@ -99,7 +345,7 @@
       <main class="flex flex-1 flex-col gap-4 sm:p-4 md:gap-8 text-start">
         <div class="h-full w-full flex">
           <div
-            class="w-full flex flex-col justify-center items-center gap-6 pt-10 pb-4"
+            class="w-full flex flex-col justify-center items-center gap-6 pb-4"
           >
             <img
               class="m-auto w-16 sm:w-20 rounded-full pt-4"
@@ -114,73 +360,100 @@
             </h1>
 
             <div
-              class="block w-full border border-gray-300 dark:border-gray-600 shadow-sm rounded-md overflow-hidden"
+              class="block p-3 w-full border border-gray-300 dark:border-gray-600 shadow-sm rounded overflow-hidden"
             >
+              <div
+                bind:this={editorDiv}
+                class="ml-2 bg-white dark:bg-default w-full min-h-[50px]"
+                on:keydown={handleKeyDown}
+              />
+
+              <!-- Suggestions Dropdown -->
+              {#if showSuggestions}
+                <ul
+                  class="absolute bg-white dark:bg-default rounded shadow-md border border-gray-300 dark:border-gray-600 mt-1 z-60 w-56 h-fit max-h-72 overflow-y-auto scroller"
+                  style="top: {suggestionPos?.top}px; left: {suggestionPos?.left}px;"
+                >
+                  {#each suggestions as suggestion, i}
+                    <li
+                      class="px-2 py-1 cursor-pointer sm:hover:bg-gray-100 dark:sm:hover:bg-[#1E222D] text-sm {i ===
+                      selectedSuggestion
+                        ? ' bg-gray-100 dark:bg-[#1E222D]'
+                        : ''}"
+                      on:click={() => insertSuggestion(suggestion)}
+                    >
+                      {suggestion}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
               <form
-                class="grow rounded-md relative flex items-center w-full overflow-hidden"
+                class="grow rounded relative flex items-center w-full overflow-hidden"
               >
                 <div
-                  class="relative min-h-32 h-auto max-h-64 overflow-y-hidden w-full outline-none"
+                  class="relative min-h-12 h-auto overflow-y-hidden w-full outline-none"
                 >
-                  <div class="w-full p-2 pt-4 h-auto">
-                    <textarea
-                      bind:this={inputEl}
-                      bind:value={inputText}
-                      on:input={resize}
-                      on:keydown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          createChat();
-                        }
-                      }}
-                      placeholder="Ask anything"
-                      class="w-full flex-1 bg-transparent outline-none
-                    placeholder-gray-500 dark:placeholder-gray-400 px-2 break-words"
-                    />
-                  </div>
-
                   <div
-                    class="absolute bottom-0 mb-2 flex flex-row gap-x-2 justify-end w-full px-2 bg:inherit dark:bg-default z-20"
+                    class="absolute bottom-0 flex flex-row justify-end w-full bg:inherit dark:bg-default"
                   >
-                    <div class=" flex flex-row gap-x-2 justify-end w-full px-2">
-                      <button
-                        class="cursor-pointer text-sm rounded-md bg-gray-300 dark:bg-[#2A2E39] px-3 py-1 transition-colors duration-50"
-                        type="button"
+                    <div class="flex flex-row justify-between w-full">
+                      <div
+                        class="order-first relative inline-block text-left cursor-pointer shadow-xs"
                       >
-                        Ask
-                      </button>
-                      <button
-                        class="cursor-pointer text-sm opacity-80 rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-default px-3 py-1 transition-colors duration-50"
-                        type="button"
-                        on:click={() =>
-                          toast?.info("Feature is coming soon 🔥", {
-                            style: `border-radius: 5px; background: #fff; color: #000; border-color: ${$mode === "light" ? "#F9FAFB" : "#4B5563"}; font-size: 15px;`,
-                          })}
-                      >
-                        Backtest
-                        <svg
-                          class="w-4 h-4 mb-1 inline-block"
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 24 24"
-                          ><path
-                            fill="currentColor"
-                            d="M17 9V7c0-2.8-2.2-5-5-5S7 4.2 7 7v2c-1.7 0-3 1.3-3 3v7c0 1.7 1.3 3 3 3h10c1.7 0 3-1.3 3-3v-7c0-1.7-1.3-3-3-3M9 7c0-1.7 1.3-3 3-3s3 1.3 3 3v2H9z"
-                          /></svg
-                        >
-                      </button>
+                        <DropdownMenu.Root>
+                          <DropdownMenu.Trigger asChild let:builder>
+                            <Button
+                              builders={[builder]}
+                              class="w-full border-gray-300 font-semibold dark:font-normal dark:border-gray-600 border bg-white dark:bg-default sm:hover:bg-gray-100 dark:sm:hover:bg-primary ease-out  flex flex-row justify-between items-center px-3 py-2  rounded truncate"
+                            >
+                              <span class="truncate">@Agents</span>
+                              <svg
+                                class="-mr-1 ml-3 h-5 w-5 xs:ml-2 inline-block"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                style="max-width:40px"
+                                aria-hidden="true"
+                              >
+                                <path
+                                  fill-rule="evenodd"
+                                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                  clip-rule="evenodd"
+                                ></path>
+                              </svg>
+                            </Button>
+                          </DropdownMenu.Trigger>
+                          <DropdownMenu.Content
+                            class="w-56 h-fit max-h-72 overflow-y-auto scroller"
+                          >
+                            <DropdownMenu.Group>
+                              {#each agentOptions as option}
+                                <DropdownMenu.Item
+                                  on:click={() => insertAgentOption(option)}
+                                  class="cursor-pointer sm:hover:bg-gray-300 dark:sm:hover:bg-primary"
+                                >
+                                  {option}
+                                </DropdownMenu.Item>
+                              {/each}
+                            </DropdownMenu.Group>
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Root>
+                      </div>
+
                       <button
                         on:click={createChat}
-                        class="{inputText?.trim()?.length > 0
+                        class="{editorText?.trim()?.length > 0
                           ? 'cursor-pointer'
-                          : 'cursor-not-allowed opacity-60'} text-white dark:text-black text-[1rem] rounded-md border border-gray-300 dark:border-gray-700 bg-blue-500 dark:bg-white px-3 py-1 transition-colors duration-200"
+                          : 'cursor-not-allowed opacity-60'} py-2 text-white dark:text-black text-[1rem] rounded border border-gray-300 dark:border-gray-700 bg-black dark:bg-white px-3 transition-colors duration-200"
                         type="button"
                       >
                         {#if isLoading}
                           <span
-                            class="loading loading-spinner loading-xs shrink-0 text-white dark:text-black"
+                            class="loading loading-spinner loading-xs text-center m-auto flex justify-center items-center text-white dark:text-black"
                           ></span>
                         {:else}
-                          <Arrow class="w-4 h-4" />
+                          <Arrow
+                            class="w-4 h-4 text-center m-auto flex justify-center items-center text-white dark:text-black"
+                          />
                         {/if}
                       </button>
                     </div>
@@ -198,7 +471,7 @@
                     <button
                       type="button"
                       class="text-sm sm:text-[1rem] w-full h-full p-3 group font-sans focus:outline-none outline-none outline-transparent transition duration-50 ease-in-out items-center relative group cursor-pointer active:scale-95 origin-center shadow-sm border border-gray-300 dark:border-gray-700 rounded sm:hover:bg-gray-100 dark:sm:hover:bg-gray-800"
-                      on:click={() => handleDefaultChatClick(item?.chat)}
+                      on:click={() => insertDefaultChat(item?.chat)}
                     >
                       <div
                         class="flex leading-none items-center h-full flex-grow"
@@ -209,7 +482,7 @@
                           <Chat
                             class="w-4 h-4 inline-block mr-3 flex-shrink-0"
                           />
-                          <span class="break-words p">{item?.chat}</span>
+                          <span class="break-words">{item?.chat}</span>
                         </div>
                       </div>
                     </button>
@@ -223,3 +496,55 @@
     </div>
   </div>
 </div>
+
+<style>
+  /* Base textarea styling */
+  .textarea-base {
+    background: transparent;
+    position: relative;
+    z-index: 1;
+    color: currentColor;
+    resize: none;
+    white-space: pre-wrap;
+  }
+
+  :global(.ProseMirror) {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  :global(.ProseMirror:focus) {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  :global(.ProseMirror:focus-visible) {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Target the editor container div */
+  .editor-container {
+    outline: none !important;
+  }
+
+  .editor-container:focus {
+    outline: none !important;
+  }
+
+  .editor-container:focus-within {
+    outline: none !important;
+  }
+
+  /* Remove focus from any child elements */
+  .editor-container * {
+    outline: none !important;
+  }
+
+  .editor-container *:focus {
+    outline: none !important;
+  }
+</style>

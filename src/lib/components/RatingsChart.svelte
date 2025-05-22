@@ -323,7 +323,7 @@
                 on:click={() => (timePeriod = item)}
                 class="px-3 py-1 {timePeriod === item
                   ? 'bg-gray-300 dark:bg-white text-muted'
-                  : 'text-muted dark:text-white bg-gray-100 dark:bg-table text-opacity-[0.6]'} border border-gray-200 dark:border-gray-700 transition ease-out duration-100 sm:hover:bg-white sm:hover:text-black rounded-md cursor-pointer"
+                  : 'text-muted dark:text-white bg-gray-100 dark:bg-table text-opacity-[0.6]'} border border-gray-200 dark:border-gray-700 transition ease-out duration-100 sm:hover:bg-white sm:hover:text-black rounded cursor-pointer"
               >
                 {item}
               </label>
@@ -332,7 +332,7 @@
                 href="/pricing"
                 class="px-3 py-1 flex flex-row items-center {timePeriod === item
                   ? 'bg-white text-muted'
-                  : 'text-muted dark:text-white bg-gray-100 dark:bg-table text-opacity-[0.6]'} border border-gray-200 dark:border-gray-700 transition ease-out duration-100 sm:hover:bg-white sm:hover:text-black rounded-md cursor-pointer"
+                  : 'text-muted dark:text-white bg-gray-100 dark:bg-table text-opacity-[0.6]'} border border-gray-200 dark:border-gray-700 transition ease-out duration-100 sm:hover:bg-white sm:hover:text-black rounded cursor-pointer"
               >
                 {item}
                 <svg
@@ -350,13 +350,13 @@
         </div>
       </div>
       <div
-        class="border border-gray-400 dark:border-gray-800 rounded w-full"
+        class="border border-gray-300 dark:border-gray-800 rounded w-full"
         use:highcharts={config}
       ></div>
     {:else}
       <div class="h-[250px] sm:h-[350px]">
         <div
-          class="flex h-full w-full flex-col items-center justify-center rounded-sm border border-gray-400 dark:border-gray-800 p-6 text-center md:p-12"
+          class="flex h-full w-full flex-col items-center justify-center rounded-sm border border-gray-300 dark:border-gray-800 p-6 text-center md:p-12"
         >
           <div class="mb-4 text-white text-[1rem] sm:text-xl font-semibold">
             No chart data available for {symbol}

@@ -38,7 +38,7 @@
             {#if allBlogPosts?.length !== 0}
               {#each allBlogPosts as item}
                 <div
-                  class="shadow-xs sm:hover:shadow-lg flex flex-col overflow-hidden rounded border border-gray-400 dark:border-gray-700"
+                  class="shadow-xs sm:hover:shadow-lg flex flex-col overflow-hidden rounded border border-gray-300 dark:border-gray-700"
                 >
                   <div class="shrink-0">
                     <a href={"/blog/article/" + convertToSlug(item?.title)}
@@ -73,7 +73,7 @@
                     </div>
                     <div class="mt-6 flex items-center">
                       <div
-                        class="flex text-xs badge px-3 bg-gray-100 dark:bg-secondary rounded-md text-black dark:text-gray-300"
+                        class="flex text-xs badge px-3 bg-gray-100 dark:bg-secondary rounded text-black dark:text-gray-300"
                       >
                         Published: <time datetime={item?.created} class="">
                           {new Date(item?.created)?.toLocaleString("en-US", {

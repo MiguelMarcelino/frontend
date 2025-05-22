@@ -281,22 +281,22 @@
       </div>
 
       <div
-        class="chart-driver shadow-xs mt-5 sm:mt-0 border border-gray-400 dark:border-gray-800 rounded"
+        class="chart-driver shadow-xs mt-5 sm:mt-0 border border-gray-300 dark:border-gray-800 rounded"
         use:highcharts={config}
       ></div>
 
       <div
-        class="mt-5 flex flex-col sm:flex-row items-start sm:items-center w-full justify-between sm:border-y border-gray-400 dark:border-gray-800 sm:pt-2 sm:pb-2"
+        class="mt-5 flex flex-col sm:flex-row items-start sm:items-center w-full justify-between sm:border-y border-gray-300 dark:border-gray-800 sm:pt-2 sm:pb-2"
       >
         <h3 class="history-driver text-xl sm:text-2xl font-bold mb-2 sm:mb-0">
           FTD History
         </h3>
 
         <div
-          class="inline-flex justify-center w-full rounded-md sm:w-auto sm:ml-auto"
+          class="inline-flex justify-center w-full rounded sm:w-auto sm:ml-auto"
         >
           <div
-            class="timeframe-toggle-driver bg-gray-300 dark:bg-secondary w-full min-w-24 sm:w-fit relative flex flex-wrap items-center justify-center rounded-md p-1"
+            class="timeframe-toggle-driver bg-gray-300 dark:bg-secondary w-full min-w-24 sm:w-fit relative flex flex-wrap items-center justify-center rounded p-1"
           >
             {#each tabs as item, i}
               {#if !["Pro", "Plus"]?.includes(data?.user?.tier) && i > 0}
@@ -326,7 +326,7 @@
                     : ''} "
                 >
                   {#if activeIdx === i}
-                    <div class="absolute inset-0 rounded-md bg-[#fff]"></div>
+                    <div class="absolute inset-0 rounded bg-[#fff]"></div>
                   {/if}
                   <span
                     class="relative text-sm block font-semibold whitespace-nowrap {activeIdx ===
@@ -345,7 +345,7 @@
 
       <div class="w-full overflow-x-auto">
         <table
-          class="table table-sm table-compact no-scrollbar rounded-none sm:rounded-md w-full border border-gray-400 dark:border-gray-800 m-auto mt-4"
+          class="table table-sm table-compact no-scrollbar rounded-none sm:rounded w-full border border-gray-300 dark:border-gray-800 m-auto mt-4"
         >
           <thead class="text-muted dark:text-white dark:bg-default">
             <tr>

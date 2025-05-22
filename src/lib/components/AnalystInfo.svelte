@@ -1,4 +1,4 @@
-<div class="mt-4 py-6 xl:mt-10 border-t border-gray-400 dark:border-gray-200">
+<div class="mt-4 py-6 xl:mt-10 border-t border-gray-300 dark:border-gray-200">
   <div class="mx-auto max-w-7xl px-3 xs:px-6 lg:px-8">
     <div class="mx-auto max-w-2xl text-center">
       <h3 class="mt-2 text-2xl font-bold tracking-tight bp:text-3xl">
@@ -15,7 +15,7 @@
         <div class="relative pl-14">
           <dt class=" font-semibold leading-4 md:leading-7">
             <div
-              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-md bg-[#3B82F6] dark:bg-[#fff]"
+              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded bg-[#3B82F6] dark:bg-[#fff]"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -40,7 +40,7 @@
         <div class="relative pl-14">
           <dt class=" font-semibold leading-4 md:leading-7">
             <div
-              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-md bg-[#3B82F6] dark:bg-[#fff]"
+              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded bg-[#3B82F6] dark:bg-[#fff]"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -65,7 +65,7 @@
         <div class="relative pl-14">
           <dt class=" font-semibold leading-4 md:leading-7">
             <div
-              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-md bg-[#3B82F6] dark:bg-[#fff]"
+              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded bg-[#3B82F6] dark:bg-[#fff]"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -90,7 +90,7 @@
         <div class="relative pl-14">
           <dt class=" font-semibold leading-4 md:leading-7">
             <div
-              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded-md bg-[#3B82F6] dark:bg-[#fff]"
+              class="absolute left-0 top-0 flex h-10 w-10 items-center justify-center rounded bg-[#3B82F6] dark:bg-[#fff]"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"

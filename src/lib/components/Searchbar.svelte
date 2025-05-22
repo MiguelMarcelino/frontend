@@ -53,10 +53,10 @@
     if (isNavigating) return;
     isNavigating = true;
 
-    const upperSymbol = symbol.toUpperCase();
+    const upperSymbol = symbol?.toUpperCase();
 
     // normalize type to 'etf' | 'index' | 'stock'
-    let type = (assetType || "").toLowerCase();
+    let type = (assetType || "stocks")?.toLowerCase();
     if (type.endsWith("s")) type = type.slice(0, -1);
 
     // … history & modal code unchanged …
@@ -97,7 +97,7 @@
         "insider",
         "financials",
       ];
-      if (root !== "stocks" && blocked.some((b) => firstSuffix.includes(b))) {
+      if (root !== "stocks" && blocked?.some((b) => firstSuffix?.includes(b))) {
         newSuffix = [];
       }
 
@@ -105,7 +105,8 @@
       if (
         type === "index" &&
         (prevRoot === "stocks" || prevRoot === "etf") &&
-        (firstSuffix.includes("dividends") || firstSuffix.includes("dark-pool"))
+        (firstSuffix?.includes("dividends") ||
+          firstSuffix?.includes("dark-pool"))
       ) {
         newSuffix = [];
       }
@@ -114,7 +115,7 @@
       if (
         type === "stock" &&
         (prevRoot === "etf" || prevRoot === "index") &&
-        firstSuffix.includes("holdings")
+        firstSuffix?.includes("holdings")
       ) {
         root = "stocks";
         newSuffix = [];
@@ -123,6 +124,7 @@
 
     const newPath = `/${[root, upperSymbol, ...newSuffix].join("/")}`;
     await goto(newPath, { replaceState: true });
+    inputValue = "";
 
     const newSearchItem = searchBarData?.find(
       ({ symbol }) => symbol === upperSymbol,
@@ -135,10 +137,8 @@
         ...(searchHistory?.filter(
           (item) => item?.symbol?.toUpperCase() !== upperSymbol,
         ) || []),
-      ].slice(0, 5);
+      ]?.slice(0, 5);
     }
-
-    console.log(updatedSearchHistory);
 
     setTimeout(() => (isNavigating = false), 100);
 
@@ -153,7 +153,7 @@
     isLoading = true;
     clearTimeout(timeoutId); // Clear any existing timeout
 
-    if (!inputValue.trim()) {
+    if (!inputValue?.trim()) {
       // Skip if query is empty or just whitespace
       searchBarData = []; // Clear previous results
       isLoading = false;
@@ -162,7 +162,7 @@
 
     timeoutId = setTimeout(async () => {
       const response = await fetch(
-        `/api/searchbar?query=${encodeURIComponent(inputValue)}&limit=10`,
+        `/api/searchbar?query=${encodeURIComponent(inputValue)}&limit=5`,
       );
       searchBarData = await response?.json();
     }, 50); // delay
@@ -174,7 +174,7 @@
 
     const list = Array.from(
       new Map(
-        [...searchHistory, ...searchBarData, ...popularList].map((item) => [
+        [...searchHistory, ...searchBarData, ...popularList]?.map((item) => [
           item.symbol,
           item,
         ]),
@@ -183,7 +183,9 @@
 
     if (!list?.length) return;
 
-    const newData = list.find((item) => item?.symbol === symbol);
+    const newData = list?.find(
+      (item) => item?.symbol?.toLowerCase() === symbol?.toLowerCase(),
+    );
     if (newData) {
       handleSearch(newData?.symbol, newData?.type);
     }
@@ -193,7 +195,7 @@
     if (event.ctrlKey && event.key === "k") {
       const keyboardSearch = document.getElementById("combobox-input");
       keyboardSearch?.dispatchEvent(new MouseEvent("click"));
-      inputValue = "";
+      //inputValue = "";
       event.preventDefault();
     }
   };
@@ -224,6 +226,14 @@
     };
   });
 
+  function handleEnter() {
+    //user enters before searchbarData is completely loaded.
+    //wait until it is ready and then goto the place;
+    if (!isLoading && searchBarData?.length > 0) {
+      handleKeyDown(inputValue);
+    }
+  }
+
   $: {
     if (searchBarModalChecked === true && typeof window !== "undefined") {
       if ($screenWidth > 640) {
@@ -236,7 +246,8 @@
 
   $: {
     if (searchBarModalChecked === false && typeof window !== "undefined") {
-      showSuggestions = inputValue = "";
+      showSuggestions = "";
+      //inputValue = "";
       document.body.classList?.remove("overflow-hidden");
     }
   }
@@ -299,7 +310,14 @@
         bind:touchedInput
         onSelectedChange={(state) => handleKeyDown(state?.value)}
       >
-        <div class="relative w-full">
+        <div
+          on:keydown={(e) => {
+            if (e.key === "Enter") {
+              handleEnter();
+            }
+          }}
+          class="relative w-full"
+        >
           <div
             class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-gray-400"
           >
@@ -320,7 +338,7 @@
           <Combobox.Input
             id="combobox-input"
             on:click={() => (inputValue = "")}
-            class="grow rounded-sm border border-gray-400 dark:border-gray-600 py-2 pl-9 text-[1rem] placeholder-gray-600 dark:placeholder-gray-400  focus:shadow-lg focus:outline-hidden focus:ring-0 tiny:pl-8 xs:pl-10 text-muted dark:text-white md:py-2 w-full bg-[#F9FAFB] dark:bg-secondary focus:bg-white dark:focus:bg-secondary"
+            class="grow rounded-sm border border-gray-300 dark:border-gray-600 py-2 pl-9 text-[1rem] placeholder-gray-600 dark:placeholder-gray-400  focus:shadow-lg focus:outline-hidden focus:ring-0 tiny:pl-8 xs:pl-10 text-muted dark:text-white md:py-2 w-full bg-[#F9FAFB] dark:bg-secondary focus:bg-white dark:focus:bg-secondary"
             placeholder="Company or stock symbol..."
             aria-label="Company or stock symbol..."
           />
@@ -358,18 +376,18 @@
           </div>
         </div>
         <Combobox.Content
-          class="w-auto z-40 -mt-0.5  rounded-md border border-gray-400 dark:border-gray-700 bg-[#F9FAFB] dark:bg-secondary px-1 py-3 shadow-xl outline-hidden"
+          class="w-auto z-40 -mt-0.5  rounded border border-gray-300 dark:border-gray-700 bg-[#F9FAFB] dark:bg-secondary px-1 py-3 shadow-xl outline-hidden"
           sideOffset={8}
         >
           {#if inputValue?.length > 0 && searchBarData?.length > 0}
             <div
-              class="pl-2 pb-2 border-b border-gray-400 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
+              class="pl-2 pb-2 border-b border-gray-300 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
             >
               Suggestions
             </div>
             {#each searchBarData as item}
               <Combobox.Item
-                class="cursor-pointer text-muted dark:text-white border-b border-gray-400 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
+                class="cursor-pointer text-muted dark:text-white border-b border-gray-300 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
                 value={item?.symbol}
                 label={item?.name}
                 on:click={() => handleSearch(item?.symbol, item?.type)}
@@ -390,13 +408,13 @@
             {/each}
           {:else if inputValue?.length === 0 || !showSuggestions}
             <div
-              class="pl-2 pb-2 border-b border-gray-400 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
+              class="pl-2 pb-2 border-b border-gray-300 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
             >
               {searchHistory?.length > 0 ? "Recent" : "Popular"}
             </div>
             {#each searchHistory?.length > 0 ? searchHistory : popularList as item}
               <Combobox.Item
-                class="cursor-pointer text-white border-b border-gray-400 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
+                class="cursor-pointer text-white border-b border-gray-300 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
                 value={item?.symbol}
                 label={item?.name}
                 on:click={() => handleSearch(item?.symbol, item?.type)}
@@ -428,7 +446,7 @@
 
 <label
   for="searchBarModal"
-  class="sm:hidden bg-gray-100 shadow dark:bg-default text-gray-500 dark:text-gray-300 dark:sm:hover:text-white cursor-pointer p-2 shrink-0 flex items-center justify-center border border-gray-400 dark:border-gray-600 rounded-md"
+  class="sm:hidden bg-gray-100 shadow dark:bg-default text-gray-500 dark:text-gray-300 dark:sm:hover:text-white cursor-pointer p-2 shrink-0 flex items-center justify-center border border-gray-300 dark:border-gray-600 rounded"
 >
   <Search class="h-[20px] w-[20px]" />
 </label>
@@ -444,7 +462,7 @@
   <label for="searchBarModal" class="cursor-pointer modal-backdrop"></label>
 
   <div
-    class="z-999 modal-box min-h-96 overflow-hidden rounded-md shadow bg-white dark:bg-secondary border border-gray-400 dark:border-gray-600 sm:my-8 sm:m-auto sm:h-auto w-full sm:w-3/4 lg:w-1/2 2xl:w-1/3"
+    class="z-999 modal-box min-h-96 overflow-hidden rounded shadow bg-white dark:bg-secondary border border-gray-300 dark:border-gray-600 sm:my-8 sm:m-auto sm:h-auto w-full sm:w-3/4 lg:w-1/2 2xl:w-1/3"
   >
     <label
       for="searchBarModal"
@@ -490,7 +508,7 @@
 
         <input
           id="modal-search"
-          class="focus:outline-none rounded-md w-full bg-gray-300 dark:bg-secondary border border-gray-400 dark:border-gray-600 focus:ring-transparent placeholder-gray-600 dark:placeholder-gray-200 py-3 pl-10 pr-4"
+          class="focus:outline-none rounded w-full bg-gray-300 dark:bg-secondary border border-gray-300 dark:border-gray-600 focus:ring-transparent placeholder-gray-600 dark:placeholder-gray-200 py-3 pl-10 pr-4"
           placeholder="Company or stock symbol..."
           bind:value={inputValue}
           bind:this={inputElement}
@@ -514,17 +532,17 @@
     </div>
 
     <div
-      class="w-auto z-40 mt-3 rounded-md border border-gray-400 dark:border-gray-700 bg-[#F9FAFB] dark:bg-secondary px-1 py-3 outline-hidden"
+      class="w-auto z-40 mt-3 rounded border border-gray-300 dark:border-gray-700 bg-[#F9FAFB] dark:bg-secondary px-1 py-3 outline-hidden"
     >
       {#if inputValue?.length > 0 && searchBarData?.length > 0}
         <div
-          class="pl-2 pb-2 border-b border-gray-400 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
+          class="pl-2 pb-2 border-b border-gray-300 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
         >
           Suggestions
         </div>
         {#each searchBarData as item}
           <li
-            class="cursor-pointer text-muted dark:text-white border-b border-gray-400 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
+            class="cursor-pointer text-muted dark:text-white border-b border-gray-300 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
             on:click={() => handleSearch(item?.symbol, item?.type)}
           >
             <div class="flex flex-row items-center justify-between w-full">
@@ -544,13 +562,13 @@
         {/each}
       {:else if inputValue?.length === 0 || !showSuggestions}
         <div
-          class="pl-2 pb-2 border-b border-gray-400 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
+          class="pl-2 pb-2 border-b border-gray-300 dark:border-gray-600 text-muted dark:text-white text-sm font-semibold w-full"
         >
           {searchHistory?.length > 0 ? "Recent" : "Popular"}
         </div>
         {#each searchHistory?.length > 0 ? searchHistory : popularList as item}
           <li
-            class="gap-y-1.5 cursor-pointer text-white border-b border-gray-400 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
+            class="gap-y-1.5 cursor-pointer text-white border-b border-gray-300 dark:border-gray-600 last:border-none flex h-fit w-auto select-none items-center rounded-button py-3 pl-2 pr-1.5 text-sm capitalize outline-hidden transition-all duration-75 data-highlighted:bg-gray-200 dark:data-highlighted:bg-primary"
             on:click={() => handleSearch(item?.symbol, item?.type)}
           >
             <div class="flex flex-row items-center justify-between w-full">

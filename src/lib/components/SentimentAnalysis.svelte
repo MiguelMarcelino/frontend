@@ -49,7 +49,7 @@
     {#if sentimentList?.length !== 0}
       <div class="pb-4 w-full mt-5">
         <div
-          class="w-auto p-4 sm:p-6 bg-default sm:bg-default rounded-md relative"
+          class="w-auto p-4 sm:p-6 bg-default sm:bg-default rounded relative"
         >
           <h3 class="text-gray-300 text-sm uppercase mb-3">Average Score</h3>
           <div class="flex flex-row items-center justify-between">
@@ -176,7 +176,7 @@
 
       <div class="w-full">
         <div
-          class="w-auto p-4 sm:p-6 bg-default sm:bg-default rounded-md relative"
+          class="w-auto p-4 sm:p-6 bg-default sm:bg-default rounded relative"
         >
           <h3 class="text-gray-300 text-sm uppercase mb-3">
             Average Score Trend
@@ -234,7 +234,7 @@
           </div>
           <!-- Adjusted line -->
           <div
-            class="sm:-ml-5 border-b absolute border-dashed border-gray-400 w-11/12 sm:w-5/6 left-1/2 transform -translate-x-1/2 {dashedLinePosition[
+            class="sm:-ml-5 border-b absolute border-dashed border-gray-300 w-11/12 sm:w-5/6 left-1/2 transform -translate-x-1/2 {dashedLinePosition[
               oneMonthResult
             ]}"
           >

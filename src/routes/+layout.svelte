@@ -1,6 +1,5 @@
 <script lang="ts">
   import "../app.css";
-  import "../app.pcss";
   //import { partytownSnippet } from "@builder.io/partytown/integration";
   import { Toaster } from "svelte-sonner";
   import "@bprogress/core/css";
@@ -54,6 +53,7 @@
   import Newspaper from "lucide-svelte/icons/newspaper";
   import Tools from "lucide-svelte/icons/wrench";
   import Gem from "lucide-svelte/icons/gem";
+  import Plus from "lucide-svelte/icons/plus";
 
   export let data;
 
@@ -138,10 +138,13 @@
     if (!browser) return;
 
     if ("serviceWorker" in navigator) {
-      // Gets all registrations for this origin (including outdated SWs)
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      for (const reg of registrations) {
-        await reg?.unregister(); // unregister them
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+
+        // Unregister all in parallel (not sequentially)
+        await Promise?.all(registrations?.map((reg) => reg?.unregister()));
+      } catch (err) {
+        console.error("Error unregistering service workers:", err);
       }
     }
 
@@ -165,7 +168,7 @@
         if (data?.user?.id) {
           await loadWorker();
         }
-      }, 2000);
+      }, 500);
     });
 
     // Cache clearing interval (independent of the deferred tasks)
@@ -330,38 +333,27 @@
                   </a>
                 </Button>
               </Sheet.Close>
-
+              <!--
               <Sheet.Close asChild let:builder>
                 <Button
                   builders={[builder]}
-                  class="rounded-full w-full border border-gray-600 bg-white dark:bg-[#2A2E39] "
+                  class="rounded w-full shadow-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#2A2E39] "
                 >
                   <a
                     class="cursor-pointer w-full flex justify-start items-start"
                     href="/chat"
                   >
                     <div
-                      class="flex flex-row items-center justify-between w-full"
+                      class="flex flex-row items-center justify-start w-full"
                     >
-                      <span class="font-semibold text-sm sm:text-[1rem]"
-                        >New Chat</span
-                      ><svg
-                        viewBox="0 0 20 20"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="currentColor"
-                        stroke="currentColor"
-                        stroke-width="1"
-                        class="w-[1.2em] h-[1.2em] stroke-[.01rem] inline-block"
-                        ><path
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          d="M10 3a7 7 0 100 14 7 7 0 000-14zm-9 7a9 9 0 1118 0 9 9 0 01-18 0zm14 .069a1 1 0 01-1 1h-2.931V14a1 1 0 11-2 0v-2.931H6a1 1 0 110-2h3.069V6a1 1 0 112 0v3.069H14a1 1 0 011 1z"
-                        ></path>
-                      </svg>
+                      <Plus class="w-4 h-4 inline-block mr-2" />
+                      <span class=" text-sm sm:text-[1rem]">Start new chat</span
+                      >
                     </div>
                   </a>
                 </Button>
               </Sheet.Close>
+              -->
 
               <Sheet.Close asChild let:builder>
                 <Button
@@ -374,7 +366,7 @@
                     class="w-full flex flex-row items-center mr-auto mt-5"
                   >
                     <div
-                      class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white md:h-8 md:w-8"
+                      class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white md:h-8 md:w-8"
                     >
                       <Home class="h-5.5 w-5.5" />
                     </div>
@@ -859,7 +851,7 @@
                   >
                     <div class="flex flex-row items-center mr-auto">
                       <div
-                        class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white sm:hover:text-muted dark:text-white md:h-8 md:w-8"
+                        class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white sm:hover:text-muted dark:text-white md:h-8 md:w-8"
                       >
                         <Boxes class="h-5.5 w-5.5" />
                       </div>
@@ -883,7 +875,7 @@
                   >
                     <div class="flex flex-row items-center mr-auto">
                       <div
-                        class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white hover:text-muted dark:text-white md:h-8 md:w-8"
+                        class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white hover:text-muted dark:text-white md:h-8 md:w-8"
                       >
                         <Newspaper class="h-5.5 w-5.5" />
                       </div>
@@ -907,7 +899,7 @@
                     >
                       <div class="flex flex-row items-center mr-auto">
                         <div
-                          class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white hover:text-muted dark:text-white md:h-8 md:w-8"
+                          class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white hover:text-muted dark:text-white md:h-8 md:w-8"
                         >
                           <Gem class="h-5.5 w-5.5" />
                         </div>
@@ -950,7 +942,7 @@
                   <Button
                     size="icon"
                     aria-label="Settings"
-                    class="overflow-hidden rounded-md bg-gray-100 shadow sm:hover:bg-gray-200 dark:bg-default dark:sm:hover:bg-[#18181B] border border-gray-400 dark:border-gray-600 w-10 h-10"
+                    class="overflow-hidden rounded bg-gray-100 shadow sm:hover:bg-gray-200 dark:bg-default dark:sm:hover:bg-[#18181B] border border-gray-300 dark:border-gray-600 w-10 h-10"
                     builders={[builder]}
                   >
                     <svg
@@ -1049,7 +1041,7 @@
         <div class="flex w-full">
           <div class="hidden 3xl:block 3xl:w-[300px]">
             <aside
-              class="shadow-md fixed overflow-y-auto no-scrollbar overflow-hidden inset-y-0 left-0 z-50 3xl:flex w-64 flex-col xl:border-r border-gray-400 dark:3xl:border-gray-800 bg-gray-100 dark:bg-[#18181B]"
+              class="shadow-md fixed overflow-y-auto no-scrollbar overflow-hidden inset-y-0 left-0 z-50 3xl:flex w-64 flex-col xl:border-r border-gray-300 dark:3xl:border-gray-800 bg-gray-100 dark:bg-[#18181B]"
             >
               <nav
                 class="flex flex-col items-center mr-auto gap-y-4 3xl:py-5 w-full"
@@ -1068,36 +1060,27 @@
                   >
                 </a>
 
+                <!--
                 <a
                   href="/chat"
                   class="mb-2 flex flex-row items-center ml-8 pr-7 w-full"
                 >
                   <div
-                    class="px-4 py-1 rounded-full flex flex-row items-center justify-between w-full border border-gray-600 bg-white dark:bg-[#2A2E39]"
+                    class="px-4 py-1 sm:py-2 rounded flex flex-row items-center justify-start w-full shadow-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#2A2E39]"
                   >
-                    <span class="font-semibold">New Chat</span><svg
-                      viewBox="0 0 20 20"
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="currentColor"
-                      stroke="currentColor"
-                      stroke-width="1"
-                      class="w-[1.2em] h-[1.2em] stroke-[.01rem] inline-block"
-                      ><path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M10 3a7 7 0 100 14 7 7 0 000-14zm-9 7a9 9 0 1118 0 9 9 0 01-18 0zm14 .069a1 1 0 01-1 1h-2.931V14a1 1 0 11-2 0v-2.931H6a1 1 0 110-2h3.069V6a1 1 0 112 0v3.069H14a1 1 0 011 1z"
-                      ></path>
-                    </svg>
+                    <Plus class="w-4 h-4 inline-block mr-2" />
+                    <span class="font-semibold">Start new chat</span>
                   </div>
                 </a>
                 <a href="/" class="flex flex-row items-center ml-9 w-full">
                   <div
-                    class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white md:h-8 md:w-8"
+                    class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white md:h-8 md:w-8"
                   >
                     <Home class="h-5.5 w-5.5" />
                   </div>
                   <span class="ml-3 text-muted dark:text-white">Home</span>
                 </a>
+                -->
 
                 <div class="flex flex-row items-center ml-9 w-full mt-3">
                   <Accordion.Root class="w-full">
@@ -1383,7 +1366,7 @@
                   class="flex flex-row items-center ml-9 w-full mt-3"
                 >
                   <div
-                    class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white md:h-8 md:w-8"
+                    class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white md:h-8 md:w-8"
                   >
                     <Boxes class="h-5.5 w-5.5" />
                   </div>
@@ -1397,7 +1380,7 @@
                   class="flex flex-row items-center ml-9 w-full mt-3"
                 >
                   <div
-                    class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white md:h-8 md:w-8"
+                    class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white md:h-8 md:w-8"
                   >
                     <Newspaper class="h-5.5 w-5.5" />
                   </div>
@@ -1409,7 +1392,7 @@
                     class="flex flex-row items-center ml-9 w-full mt-3"
                   >
                     <div
-                      class="flex h-9 w-9 items-center justify-center rounded-md text-muted dark:text-white md:h-8 md:w-8"
+                      class="flex h-9 w-9 items-center justify-center rounded text-muted dark:text-white md:h-8 md:w-8"
                     >
                       <Gem class="h-5.5 w-5.5" />
                     </div>

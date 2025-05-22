@@ -38,18 +38,18 @@
       src="/img/astronaut.png"
       alt="astronaut"
       loading="eager"
-      class="absolute mask mask-circle -top-8 -right-5 h-full w-1/2 object-cover opacity-40"
+      class="absolute mask mask-circle -top-8 -right-5 h-full w-1/2 object-cover opacity-20 dark:opacity-40"
     />
 
     <!-- overlay content, centered both ways -->
     <div class="relative z-10 max-w-md text-center space-y-4">
-      <p class="">
+      <p class="font-semibold dark:font-normal">
         Stocknear Delivers Real-Time Market Intelligence — 10× More Insight,
         Right in Your Pocket.
       </p>
       <a
         href="/pricing"
-        class="inline-flex items-center px-4 py-2 text-[1rem] border-none rounded-md btn btn-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition duration-150 ease-in-out"
+        class="inline-flex items-center px-4 py-2 text-[1rem] border-none rounded btn btn-lg font-semibold text-white bg-blue-600 hover:bg-blue-700 transition duration-150 ease-in-out"
       >
         Unlock All Features
         <span

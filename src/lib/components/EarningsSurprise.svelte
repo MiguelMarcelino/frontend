@@ -56,7 +56,7 @@
           </h3>
           <label
             class="{latestInfoDate(rawData?.date)
-              ? 'border border-gray-400'
+              ? 'border border-gray-300'
               : 'hidden'} shadow bg-blue-100 dark:text-black dark:bg-[#fff] ml-2 font-semibold not-italic text-xs rounded px-2 py-0.5"
             >New</label
           >
@@ -66,7 +66,7 @@
 
     <div
       class="text-[1rem] {latestInfoDate(rawData?.date)
-        ? 'bg-blue-100 dark:bg-[#F9AB00]/10 p-3 rounded-md shadow'
+        ? 'bg-blue-100 dark:bg-[#F9AB00]/10 p-3 rounded shadow'
         : ' pl-1'} "
     >
       <div class="mt-1">

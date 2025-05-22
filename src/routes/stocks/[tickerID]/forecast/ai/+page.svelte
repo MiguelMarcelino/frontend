@@ -504,7 +504,7 @@
                 class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4 mt-3"
               >
                 <div
-                  class="shadow-md bg-gray-100 dark:bg-gray-800/30 rounded-lg p-4"
+                  class="shadow-md bg-gray-100 dark:bg-gray-800/30 rounded p-4"
                 >
                   <div class="text-sm sm:text-[1rem] mb-2 flex items-center">
                     <span>Score Accuracy</span>
@@ -519,7 +519,7 @@
                 </div>
 
                 <div
-                  class="shadow-md bg-gray-100 dark:bg-gray-800/30 rounded-lg p-4"
+                  class="shadow-md bg-gray-100 dark:bg-gray-800/30 rounded p-4"
                 >
                   <div class="text-sm sm:text-[1rem] mb-2 flex items-center">
                     <span>Latest Forecast</span>
@@ -553,7 +553,7 @@
                 </div>
 
                 <div
-                  class="shadow-md bg-gray-100 dark:bg-gray-800/30 rounded-lg p-4"
+                  class="shadow-md bg-gray-100 dark:bg-gray-800/30 rounded p-4"
                 >
                   <div class="text-sm sm:text-[1rem] mb-2 flex items-center">
                     <span>Avg Return</span>
@@ -595,7 +595,7 @@
                       <div
                         class="{!isPro
                           ? 'blur-[3px]'
-                          : ''} mt-5 shadow-xs sm:mt-0 sm:border sm:border-gray-400 dark:border-gray-800 rounded"
+                          : ''} mt-5 shadow-xs sm:mt-0 sm:border sm:border-gray-300 dark:border-gray-800 rounded"
                         use:highcharts={configScore}
                       ></div>
                     {/if}
@@ -631,7 +631,7 @@
                     >
                       <thead>
                         <tr
-                          class="border-b border-gray-400 dark:border-gray-600 font-normal text-sm sm:text-[1rem] whitespace-nowrap"
+                          class="border-b border-gray-300 dark:border-gray-600 font-normal text-sm sm:text-[1rem] whitespace-nowrap"
                         >
                           <th
                             class="py-[3px] text-left font-semibold lg:py-0.5 text-muted dark:text-white"
@@ -650,7 +650,7 @@
                       <tbody>
                         <!-- Score Row -->
                         <tr
-                          class="border-b border-gray-400 dark:border-gray-600 font-normal text-sm sm:text-[1rem] whitespace-nowrap"
+                          class="border-b border-gray-300 dark:border-gray-600 font-normal text-sm sm:text-[1rem] whitespace-nowrap"
                         >
                           <td class="py-[3px] text-left lg:py-0.5 text-[1rem]"
                             >Score</td
@@ -784,7 +784,7 @@
                       <div
                         class="{!isPro
                           ? 'blur-[3px]'
-                          : ''} mt-5 shadow-xs sm:mt-0 sm:border sm:border-gray-400 dark:border-gray-800 rounded"
+                          : ''} mt-5 shadow-xs sm:mt-0 sm:border sm:border-gray-300 dark:border-gray-800 rounded"
                         use:highcharts={config}
                       ></div>
                     {/if}
@@ -818,7 +818,7 @@
                     <table class="w-full text-right text-tiny xs:text-sm">
                       <thead
                         ><tr
-                          class="border-b border-gray-400 dark:border-gray-600 font-normal text-sm sm:text-[1rem]"
+                          class="border-b border-gray-300 dark:border-gray-600 font-normal text-sm sm:text-[1rem]"
                           ><th
                             class="py-[3px] text-left font-semibold lg:py-0.5"
                             >Target</th
@@ -830,7 +830,7 @@
                       >
                       <tbody
                         ><tr
-                          class="border-b border-gray-400 dark:border-gray-600 font-normal text-sm sm:text-[1rem]"
+                          class="border-b border-gray-300 dark:border-gray-600 font-normal text-sm sm:text-[1rem]"
                         >
                           <td class="py-[3px] text-left lg:py-0.5">Price</td>
                           {#if !["Pro", "Plus"]?.includes(data?.user?.tier)}

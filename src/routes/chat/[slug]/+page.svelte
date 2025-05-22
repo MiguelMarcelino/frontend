@@ -1,8 +1,14 @@
 <script lang="ts">
   import ChatMessage from "$lib/components/Chat/ChatMessage.svelte";
   import Arrow from "lucide-svelte/icons/arrow-up";
-  import { mode } from "mode-watcher";
-  import { toast } from "svelte-sonner";
+  import { agentOptions } from "$lib/utils";
+  import * as DropdownMenu from "$lib/components/shadcn/dropdown-menu/index.js";
+  import { Button } from "$lib/components/shadcn/button/index.js";
+  import { EditorState, Plugin } from "prosemirror-state";
+  import { EditorView, Decoration, DecorationSet } from "prosemirror-view";
+  import { keymap } from "prosemirror-keymap";
+  import { schema } from "prosemirror-schema-basic";
+
   import { onMount, afterUpdate, tick } from "svelte";
   import SEO from "$lib/components/SEO.svelte";
 
@@ -10,84 +16,184 @@
 
   // Initialize messages with default or data
   let messages = data?.getChat?.messages || [
-    { text: "Hello! How can I help you today?", sender: "llm" },
+    { content: "Hello! How can I help you today?", role: "system" },
   ];
-  let inputText = "";
-  let isLoading = false;
-  let inputEl: HTMLTextAreaElement;
+
+  let chatId = data?.getChat?.id;
+
   let chatContainer: HTMLDivElement;
   let bottomEl: HTMLDivElement;
-  const MAX_HEIGHT = 16 * 16;
 
-  // Auto-scrolling
-  let autoScroll = true;
-  let lastScrollTop = 0;
+  // Auto-scrolling - Modified to track streaming state
+  let isStreaming = false; // New variable to track streaming state
 
-  // Check for first message and process it immediately
+  let editorDiv;
+  let editorView;
+  let editorText = "";
+
+  let suggestions = [];
+  let showSuggestions = false;
+  let suggestionPos = { top: 0, left: 0 };
+  let selectedSuggestion = 0;
+  let currentQuery = "";
+  let isLoading = false;
+
+  const editorHighlighter = new Plugin({
+    props: {
+      decorations(state) {
+        const decorations = [];
+        const regex = /\@([a-zA-Z0-9_]+)/g;
+
+        state.doc.descendants((node, pos) => {
+          if (!node.isText) return;
+
+          const text = node.text;
+          if (!text) return;
+
+          let match;
+          while ((match = regex.exec(text)) !== null) {
+            const mention = match[1];
+            if (agentOptions?.includes(mention)) {
+              decorations?.push(
+                Decoration?.inline(
+                  pos + match.index,
+                  pos + match.index + match[0]?.length,
+                  {
+                    class: "text-blue-800 dark:text-blue-400",
+                  },
+                ),
+              );
+            }
+          }
+        });
+
+        return DecorationSet.create(state.doc, decorations);
+      },
+    },
+  });
+
+  function getCaretCoordinates(view) {
+    const { from } = view.state.selection;
+    const start = view.coordsAtPos(from);
+    return start;
+  }
+
+  function checkAutocomplete(view) {
+    const { from } = view.state.selection;
+    const before = view.state.doc.textBetween(
+      Math.max(0, from - 20),
+      from,
+      "\n",
+      "\n",
+    );
+    const match = /\@([a-zA-Z0-9_]*)$/.exec(before);
+
+    if (match) {
+      currentQuery = match[1];
+      suggestions = agentOptions?.filter((s) =>
+        s.toLowerCase().startsWith(currentQuery.toLowerCase()),
+      );
+
+      const coords = getCaretCoordinates(view);
+      suggestionPos = { top: coords.bottom, left: coords.left };
+      showSuggestions = suggestions.length > 0;
+    } else {
+      showSuggestions = false;
+    }
+  }
+
+  const placeholderPlugin = new Plugin({
+    props: {
+      decorations(state) {
+        // only show if empty
+        if (state.doc.textContent.length > 0) return null;
+
+        const widget = Decoration.widget(1, () => {
+          const span = document.createElement("span");
+          span.className =
+            " text-gray-800 dark:text-gray-400 pointer-events-none";
+          span.textContent = "Ask anything";
+          return span;
+        });
+
+        return DecorationSet.create(state.doc, [widget]);
+      },
+    },
+  });
+
   onMount(async () => {
-    // Check if the first message is from user and needs a response
-    if (messages.length === 1 && messages[0].sender === "user") {
-      const userQuery = messages[0].text;
-      if (userQuery.trim()) {
+    editorView = new EditorView(editorDiv, {
+      state: EditorState.create({
+        schema,
+        plugins: [
+          editorHighlighter,
+          placeholderPlugin,
+          agentMentionDeletePlugin(agentOptions),
+        ],
+      }),
+      attributes: {
+        style: "outline: none !important; border: none !important;",
+      },
+      dispatchTransaction(transaction) {
+        const newState = editorView.state.apply(transaction);
+        editorView.updateState(newState);
+        editorText = editorView?.state.doc?.textContent;
+        checkAutocomplete(editorView);
+      },
+    });
+
+    // Force remove outline after creation
+    const proseMirrorEl = editorDiv.querySelector(".ProseMirror");
+    if (proseMirrorEl) {
+      proseMirrorEl.style.outline = "none";
+      proseMirrorEl.style.border = "none";
+      proseMirrorEl.style.boxShadow = "none";
+    }
+
+    // Autofocus the editor
+    // Autofocus the editor with a small delay
+    setTimeout(() => {
+      editorView.focus();
+    }, 100);
+    editorText = editorView.state.doc.textContent;
+
+    if (messages.length === 1 && messages[0].role === "user") {
+      const userQuery = messages[0]?.content;
+      editorText = "";
+      console.log(userQuery);
+      if (userQuery?.trim()) {
         // Clear messages and set user message
-        messages = [{ text: userQuery, sender: "user" }];
+        messages = [{ content: userQuery, Text, role: "user" }];
         await llmChat(userQuery);
       }
     }
-
-    inputEl?.focus();
-    resize();
-
-    if (chatContainer) {
-      chatContainer.addEventListener("scroll", handleScroll);
-    }
   });
 
+  // Modified afterUpdate to only autoscroll during streaming
   afterUpdate(async () => {
-    if (autoScroll && bottomEl) {
+    if (isStreaming && bottomEl) {
       // Wait for new messages to render
       await tick();
-      bottomEl.scrollIntoView({ behavior: isLoading ? "auto" : "smooth" });
+      bottomEl.scrollIntoView({ behavior: "smooth" });
     }
   });
-
-  function handleScroll() {
-    if (!chatContainer) return;
-
-    const distanceFromBottom =
-      chatContainer.scrollHeight -
-      chatContainer.scrollTop -
-      chatContainer.clientHeight;
-
-    // User scrolled up
-    if (chatContainer.scrollTop < lastScrollTop && distanceFromBottom > 100) {
-      autoScroll = false;
-    }
-
-    // User back near bottom
-    if (distanceFromBottom < 50) {
-      autoScroll = true;
-    }
-
-    lastScrollTop = chatContainer.scrollTop;
-  }
-
-  function resize() {
-    if (!inputEl) return;
-
-    inputEl.style.height = "auto";
-    const scrollH = inputEl.scrollHeight;
-    const newH = Math.min(scrollH, MAX_HEIGHT);
-    inputEl.style.height = `${newH}px`;
-    inputEl.style.overflowY = scrollH > MAX_HEIGHT ? "fit" : "hidden";
-  }
 
   async function llmChat(userMessage?: string) {
     isLoading = true;
-
+    isStreaming = true;
     // Use provided message or input text
-    const userQuery = userMessage || inputText?.trim();
-    console.log(userQuery);
+    const userQuery = userMessage || editorText?.trim();
+
+    // Clear the editor content
+    const emptyDoc = schema?.topNodeType?.createAndFill();
+    const tr = editorView?.state?.tr?.replaceWith(
+      0,
+      editorView?.state?.doc?.content?.size,
+      emptyDoc?.content,
+    );
+    editorView?.dispatch(tr);
+    editorText = "";
+
     if (!userQuery || userQuery?.length < 1) {
       isLoading = false;
       return;
@@ -95,25 +201,17 @@
 
     // Only append user message if not already in messages
     if (!userMessage) {
-      messages = [...messages, { text: userQuery, sender: "user" }];
+      messages = [...messages, { content: userQuery, role: "user" }];
     }
 
     // Add placeholder for assistant response
-    messages = [...messages, { text: "", sender: "llm" }];
-
-    // Clear input and adjust UI
-    inputText = "";
-    resize();
-    inputEl?.focus();
-
-    // Re-enable auto-scroll on new message
-    autoScroll = true;
+    messages = [...messages, { content: "", role: "system" }];
 
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: userQuery }),
+        body: JSON.stringify({ query: userQuery, chatId: chatId }),
       });
 
       if (!res.ok || !res.body) {
@@ -121,7 +219,7 @@
         messages = messages?.slice(0, -1);
 
         const errorMessage = (await res?.json())?.error || "Unknown error";
-        messages = [...messages, { text: errorMessage, sender: "llm" }];
+        messages = [...messages, { content: errorMessage, role: "system" }];
         isLoading = false;
         return;
       }
@@ -129,18 +227,18 @@
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      const idx = messages.length - 1;
+      const idx = messages?.length - 1;
       let assistantText = "";
 
       isLoading = false;
 
       while (true) {
-        const { value, done } = await reader.read();
+        const { value, done } = await reader?.read();
         if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
+        buffer += decoder?.decode(value, { stream: true });
+        const lines = buffer?.split("\n");
+        buffer = lines?.pop() ?? "";
 
         for (const line of lines) {
           if (!line.trim()) continue;
@@ -153,9 +251,9 @@
               break;
             }
 
-            if (json.content) {
-              assistantText = json.content;
-              messages[idx].text = assistantText;
+            if (json?.content) {
+              assistantText = json?.content;
+              messages[idx].content = assistantText;
               messages = [...messages]; // Trigger reactivity
             }
           } catch (err) {
@@ -164,6 +262,7 @@
         }
       }
 
+      isStreaming = false; // End streaming - disable autoscroll
       await saveChat();
     } catch (error) {
       console.error("Chat request failed:", error);
@@ -171,17 +270,19 @@
       messages = [
         ...messages,
         {
-          text: "Failed to connect to the chat service. Please try again later.",
-          sender: "llm",
+          content:
+            "Failed to connect to the chat service. Please try again later.",
+          role: "system",
         },
       ];
     } finally {
       isLoading = false;
+      isStreaming = false; // Ensure streaming is disabled
     }
   }
 
   async function saveChat() {
-    const postData = { messages: messages, chatId: data?.getChat?.id };
+    const postData = { messages: messages, chatId: chatId };
 
     const response = await fetch("/api/update-chat", {
       method: "POST",
@@ -191,6 +292,130 @@
 
     const output = await response?.json();
   }
+
+  async function handleKeyDown(event) {
+    if (showSuggestions) {
+      if (event.key === "ArrowDown") {
+        selectedSuggestion = (selectedSuggestion + 1) % suggestions.length;
+        event.preventDefault();
+      } else if (event.key === "ArrowUp") {
+        selectedSuggestion =
+          (selectedSuggestion - 1 + suggestions.length) % suggestions.length;
+        event.preventDefault();
+      } else if (event.key === "Enter") {
+        insertSuggestion(suggestions[selectedSuggestion]);
+        event.preventDefault();
+      } else if (event.key === "Escape") {
+        showSuggestions = false;
+      }
+    } else {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        await llmChat();
+      }
+    }
+  }
+
+  function insertSuggestion(suggestion) {
+    const { from } = editorView.state.selection;
+    const before = editorView.state.doc.textBetween(
+      Math.max(0, from - 20),
+      from,
+      "\n",
+      "\n",
+    );
+    const match = /\@([a-zA-Z0-9_]*)$/.exec(before);
+
+    if (match) {
+      const start = from - match[0].length;
+
+      // First, create transaction
+      const tr = editorView.state.tr.insertText(`@${suggestion} `, start, from);
+
+      // Then set selection on the new transaction
+      const resolvedPos = tr.doc.resolve(start + suggestion.length + 2);
+      const newSelection =
+        editorView.state.selection.constructor.near(resolvedPos);
+      tr.setSelection(newSelection);
+
+      editorView.dispatch(tr);
+      showSuggestions = false;
+    }
+  }
+
+  function insertAgentOption(option) {
+    const { from, to } = editorView.state.selection;
+    const text = `@${option} `;
+
+    const tr = editorView.state.tr.insertText(text, from, to);
+    const resolvedPos = tr.doc.resolve(from + text.length);
+    const newSelection =
+      editorView.state.selection.constructor.near(resolvedPos);
+    tr.setSelection(newSelection);
+
+    editorView?.dispatch(tr);
+    editorView?.focus();
+  }
+
+  function agentMentionDeletePlugin(agentOptions: string[]) {
+    return keymap({
+      Backspace: (state, dispatch, view) => {
+        const { $cursor } = state.selection as any;
+
+        if (!$cursor) return false;
+
+        const { pos } = $cursor;
+        const textBefore = state.doc.textBetween(
+          Math.max(0, pos - 30),
+          pos,
+          "\n",
+          "\n",
+        );
+
+        const regex = /\@([a-zA-Z0-9_]+)$/;
+        const match = regex.exec(textBefore);
+
+        if (match && agentOptions.includes(match[1])) {
+          const start = pos - match[0].length;
+
+          if (dispatch) {
+            dispatch(state.tr.delete(start, pos));
+          }
+          return true;
+        }
+
+        return false;
+      },
+
+      // Optional: support Delete key too
+      Delete: (state, dispatch, view) => {
+        const { $cursor } = state.selection as any;
+        if (!$cursor) return false;
+
+        const { pos } = $cursor;
+        const textAfter = state.doc.textBetween(
+          pos,
+          Math.min(pos + 30, state.doc.content.size),
+          "\n",
+          "\n",
+        );
+
+        const regex = /^\@([a-zA-Z0-9_]+)/;
+        const match = regex.exec(textAfter);
+
+        if (match && agentOptions.includes(match[1])) {
+          const end = pos + match[0].length;
+
+          if (dispatch) {
+            dispatch(state.tr.delete(pos, end));
+          }
+          return true;
+        }
+
+        return false;
+      },
+    });
+  }
 </script>
 
 <SEO
@@ -198,94 +423,181 @@
   description="Get real-time stock market insights with Stocknear AI Agent. Analyze fundamentals, dark pool activity, options flow, and breaking market news – all in one place."
 />
 
-<section class="w-full max-w-[1400px] mx-auto h-full pt-5 px-4 lg:px-0">
-  <div class="w-full 2xl:max-w-[1100px] flex flex-col h-full">
+<section class="w-full max-w-[1400px] mx-auto min-h-[80vh] pt-5 px-4 lg:px-0">
+  <div class="relative w-full 2xl:max-w-[1100px] flex flex-col min-h-[80vh]">
     <main
       class="w-full overflow-y-auto p-4 space-y-4"
       bind:this={chatContainer}
     >
       <div class="pb-60">
         {#each messages as message, index}
-          {#if index === messages.length - 1 && message.sender === "llm" && isLoading}
+          {#if index === messages.length - 1 && message.role === "system" && isLoading}
             <ChatMessage {message} isLoading={true} />
           {:else}
             <ChatMessage {message} isLoading={false} />
           {/if}
         {/each}
         <!-- sentinel div always at the bottom -->
+
         <div bind:this={bottomEl}></div>
       </div>
-    </main>
 
-    <div
-      class="absolute fixed bottom-5 sm:bottom-10 left-0 right-0 mx-auto w-11/12 sm:w-11/12 md:w-3/4 lg:w-2/3 max-w-4xl shadow-lg bg-gray-100 dark:bg-default border border-gray-300 dark:border-gray-600 shadow-sm rounded-lg overflow-hidden"
-    >
-      <form
-        on:submit|preventDefault={() => llmChat()}
-        class="grow rounded-md relative flex items-center w-full overflow-hidden"
+      <div
+        class="bg-gray-50 dark:bg-default fixed absolute bottom-10 sm:bottom-20 left-1/2 transform -translate-x-1/2 block p-3 min-w-[90vw] sm:min-w-0 sm:w-full sm:max-w-3xl border border-gray-300 dark:border-gray-600 shadow rounded overflow-hidden"
       >
         <div
-          class="relative min-h-32 h-auto max-h-64 overflow-y-hidden w-full outline-none"
+          bind:this={editorDiv}
+          class="ml-2 bg-gray-50 dark:bg-default w-full min-h-[5vh] sm:min-h-[60px]"
+          on:keydown={handleKeyDown}
+        />
+
+        <form
+          class="grow rounded relative flex items-center w-full overflow-hidden"
         >
-          <div class="w-full p-2 pt-4 h-auto">
-            <textarea
-              bind:this={inputEl}
-              bind:value={inputText}
-              on:input={resize}
-              on:keydown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  llmChat();
-                }
-              }}
-              placeholder="Ask anything"
-              class="w-full flex-1 bg-transparent outline-none placeholder-gray-800 dark:placeholder-gray-200 dark:text-white px-2 break-words"
-            />
-          </div>
           <div
-            class="absolute bottom-0 mb-2 flex flex-row gap-x-2 justify-end w-full px-2 bg-gray-100 dark:bg-default z-20"
+            class="relative min-h-12 h-auto overflow-y-hidden w-full outline-none"
           >
-            <div class="flex flex-row gap-x-2 justify-end w-full px-2">
-              <button
-                class="cursor-pointer text-sm rounded-md bg-gray-100 dark:bg-[#2A2E39] px-3 py-1 transition-colors duration-50"
-                type="button"
-              >
-                Ask
-              </button>
-              <button
-                class="cursor-pointer text-sm opacity-80 rounded-md border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-default px-3 py-1 transition-colors duration-50"
-                type="button"
-                on:click={() =>
-                  toast?.info("Feature is coming soon 🔥", {
-                    style: `border-radius: 5px; background: #fff; color: #000; border-color: ${
-                      $mode === "light" ? "#F9FAFB" : "#4B5563"
-                    }; font-size: 15px;`,
-                  })}
-              >
-                Backtest
-                <svg
-                  class="w-4 h-4 mb-1 inline-block"
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
+            <div
+              class="absolute bottom-0 flex flex-row justify-end w-full bg:inherit dark:bg-default"
+            >
+              <div class="flex flex-row justify-between w-full">
+                <div
+                  class="order-first relative inline-block text-left cursor-pointer shadow-xs"
                 >
-                  <path
-                    fill="currentColor"
-                    d="M17 9V7c0-2.8-2.2-5-5-5S7 4.2 7 7v2c-1.7 0-3 1.3-3 3v7c0 1.7 1.3 3 3 3h10c1.7 0 3-1.3 3-3v-7c0-1.7-1.3-3-3-3M9 7c0-1.7 1.3-3 3-3s3 1.3 3 3v2H9z"
-                  />
-                </svg>
-              </button>
-              <button
-                type="submit"
-                class="{inputText?.trim()?.length > 0
-                  ? 'cursor-pointer'
-                  : 'cursor-not-allowed opacity-60'} text-white dark:text-black text-[1rem] rounded-md border border-gray-300 dark:border-gray-700 bg-blue-500 dark:bg-white px-3 py-1 transition-colors duration-50"
-              >
-                <Arrow class="w-4 h-4" />
-              </button>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild let:builder>
+                      <Button
+                        builders={[builder]}
+                        class="w-full border-gray-300 font-semibold dark:font-normal dark:border-gray-600 border bg-gray-50 dark:bg-default sm:hover:bg-gray-100 dark:sm:hover:bg-primary ease-out flex flex-row justify-between items-center px-3 py-2 rounded truncate"
+                      >
+                        <span class="truncate">@Agents</span>
+                        <svg
+                          class="-mr-1 ml-3 h-5 w-5 xs:ml-2 inline-block"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          style="max-width:40px"
+                          aria-hidden="true"
+                        >
+                          <path
+                            fill-rule="evenodd"
+                            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                            clip-rule="evenodd"
+                          ></path>
+                        </svg>
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content
+                      class="w-56 h-fit max-h-72 overflow-y-auto scroller"
+                    >
+                      <DropdownMenu.Group>
+                        {#each agentOptions as option}
+                          <DropdownMenu.Item
+                            on:click={() => insertAgentOption(option)}
+                            class="cursor-pointer sm:hover:bg-gray-300 dark:sm:hover:bg-primary"
+                          >
+                            {option}
+                          </DropdownMenu.Item>
+                        {/each}
+                      </DropdownMenu.Group>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                </div>
+
+                <button
+                  on:click={() =>
+                    editorText?.trim()?.length > 0 ? llmChat() : ""}
+                  class="{editorText?.trim()?.length > 0
+                    ? 'cursor-pointer'
+                    : 'cursor-not-allowed opacity-60'} py-2 text-white dark:text-black text-[1rem] rounded border border-gray-300 dark:border-gray-700 bg-black dark:bg-gray-50 px-3 transition-colors duration-200"
+                  type="button"
+                >
+                  {#if isLoading}
+                    <span
+                      class="loading loading-spinner loading-xs text-center m-auto flex justify-center items-center text-white dark:text-black"
+                    ></span>
+                  {:else}
+                    <Arrow
+                      class="w-4 h-4 text-center m-auto flex justify-center items-center text-white dark:text-black"
+                    />
+                  {/if}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      </form>
-    </div>
+        </form>
+      </div>
+
+      <!-- Suggestions Dropdown - Positioned relative to document body -->
+    </main>
+    {#if showSuggestions}
+      <ul
+        class=" fixed bg-gray-50 dark:bg-default rounded shadow-md border border-gray-300 dark:border-gray-600 z-[9999] w-56 h-fit max-h-72 overflow-y-auto scroller"
+        style="top: {suggestionPos?.top}px; left: {suggestionPos?.left}px;"
+      >
+        {#each suggestions as suggestion, i}
+          <li
+            class="px-2 py-1 cursor-pointer sm:hover:bg-gray-100 dark:sm:hover:bg-[#1E222D] text-sm {i ===
+            selectedSuggestion
+              ? 'bg-gray-100 dark:bg-[#1E222D]'
+              : ''}"
+            on:click={() => insertSuggestion(suggestion)}
+          >
+            {suggestion}
+          </li>
+        {/each}
+      </ul>
+    {/if}
   </div>
 </section>
+
+<style>
+  /* Base textarea styling */
+  .textarea-base {
+    background: transparent;
+    position: relative;
+    z-index: 1;
+    color: currentColor;
+    resize: none;
+    white-space: pre-wrap;
+  }
+
+  :global(.ProseMirror) {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  :global(.ProseMirror:focus) {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  :global(.ProseMirror:focus-visible) {
+    outline: none !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Target the editor container div */
+  .editor-container {
+    outline: none !important;
+  }
+
+  .editor-container:focus {
+    outline: none !important;
+  }
+
+  .editor-container:focus-within {
+    outline: none !important;
+  }
+
+  /* Remove focus from any child elements */
+  .editor-container * {
+    outline: none !important;
+  }
+
+  .editor-container *:focus {
+    outline: none !important;
+  }
+</style>
