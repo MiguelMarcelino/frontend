@@ -20,4 +20,4 @@ COPY ./static /opt/stocknear-frontend/static
 COPY ./tests /opt/stocknear-frontend/tests
 COPY . /opt/stocknear-frontend/
 
-ENTRYPOINT ["npm", "run", "dev", "--", "--host"]
+ENTRYPOINT ["npx", "vite", "dev", "--host"]
